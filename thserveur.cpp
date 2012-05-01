@@ -8,13 +8,15 @@ thServeur::thServeur(QObject *parent) :
     m_MessageListe = new QList<QString>();
 
     //Initialisation des codes de messages
-    codeErr = 21;//NAK
-    codeLogin = 'L';
+    const char thServeur::codeErr = char('L');
+    /*codeLogin = 'L';
     codeCreate = 'C';
     codeDelete = 'D';
     codeAlive = 'A';
-    codeMessage = 'M';
+    codeMessage = 'M';*/
 
+    m_FichierUtilisateur = new QFile("utilisateurs");
+    m_FichierAdmin = new QFile("administrateurs");
 }
 
 void thServeur::incomingConnection(int socketDesc)
@@ -29,6 +31,17 @@ void thServeur::incomingConnection(int socketDesc)
         socket.write(m_baTrame); //Envoie de l'erreur
     }
 
-    //Login
+    m_baTrameRecu = socket.readAll();
 
+    switch(m_baTrameRecu[0])
+    {
+    case codeCreate:
+
+        break;
+    case 'L':
+
+        break;
+    default:
+        break;
+    }
 }

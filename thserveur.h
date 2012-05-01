@@ -4,6 +4,7 @@
 #include <QTcpServer>
 #include <QList>
 #include <QTcpSocket>
+#include <QFile>
 
 class thServeur : public QTcpServer
 {
@@ -16,11 +17,15 @@ protected:
 
 private:
     unsigned int m_MessageCourant;
-    QList *m_MessageListe;
-    QByteArray m_baTrame;
+    QList<QString> * m_MessageListe;
+    QByteArray m_baTrame, m_baTrameRecu;
+    QFile * m_FichierUtilisateur;
+    QFile * m_FichierAdmin;
 
     //Codes messages
-    char codeErr,codeLogin,codeCreate,codeDelete,codeAlive,codeMessage;
+    static const char codeErr; //, codeLogin,codeCreate,codeDelete,codeAlive,codeMessage;
+
+    //Méthodes privées
     
 signals:
     
