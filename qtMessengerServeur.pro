@@ -19,4 +19,5 @@ SOURCES += main.cpp \
     thserveur.cpp
 
 HEADERS += \
-    thserveur.h
+    thserveur.h \
+    codes.h

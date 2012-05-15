@@ -1,10 +1,19 @@
 #ifndef THSERVEUR_H
 #define THSERVEUR_H
 
+#include "codes.h"
+
+#include <iostream>
 #include <QTcpServer>
-#include <QList>
 #include <QTcpSocket>
 #include <QFile>
+#include <QList>
+#include <QHash>
+#include <QBuffer>
+#include <QString>
+#include <QStringList>
+#include <QFile>
+#include <QTextStream>
 
 class thServeur : public QTcpServer
 {
@@ -13,24 +22,19 @@ public:
     explicit thServeur(QObject *parent = 0);
 
 protected:
-    void incomingConnection(int);
+    void incomingConnection(int socketDesc);
+    void destroyed();
 
 private:
-    unsigned int m_MessageCourant;
-    QList<QString> * m_MessageListe;
-    QByteArray m_baTrame, m_baTrameRecu;
-    QFile * m_FichierUtilisateur;
-    QFile * m_FichierAdmin;
+    QHash<QString, QString> m_hashUtil;
+    QHash<QString, QString> m_hashAdmin;
 
-    //Codes messages
-    static const char codeErr; //, codeLogin,codeCreate,codeDelete,codeAlive,codeMessage;
+    QHash<QTcpSocket*, QString> m_hashConnections;
+    QByteArray listeConnections();
 
-    //Méthodes privées
-    
-signals:
-    
-public slots:
-    
+private slots:
+    void messageRecu();
+    void deconnection();
 };
 
 #endif // THSERVEUR_H
