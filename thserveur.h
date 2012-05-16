@@ -20,6 +20,7 @@ class thServeur : public QTcpServer
     Q_OBJECT
 public:
     explicit thServeur(QObject *parent = 0);
+    //~thServeur();
 
 protected:
     void incomingConnection(int socketDesc);
@@ -31,6 +32,7 @@ private:
 
     QHash<QTcpSocket*, QString> m_hashConnections;
     QByteArray listeConnections();
+    void rafraichiFichierUtil();
 
 private slots:
     void messageRecu();

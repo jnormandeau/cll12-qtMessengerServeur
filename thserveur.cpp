@@ -1,13 +1,4 @@
 /*
-    A completer:
-        -Timeout si un client ne repond pas pour X secondes (est ce que disconnected() est asser?)
-        -Segmentation fault dans incomingConnection()
-        -Sauvegarder les hash tables avant de terminer (signal destroyed())
-
-        commentaire avec plusieurs ******* = commentaires temporaires a enlever avant la version finale
-*/
-
-/*
   Trames:
 
   Erreur:   ['E'][Message]
@@ -37,7 +28,7 @@ thServeur::thServeur(QObject *parent) :
     if (fichierUtil.open(QIODevice::ReadWrite))
     {
         QTextStream streamUtil(&fichierUtil);
-        while(!streamUtil.atEnd())
+        while (!streamUtil.atEnd())
         {
             ligne = streamUtil.readLine();
             separateur = ligne.split("/");
@@ -50,7 +41,7 @@ thServeur::thServeur(QObject *parent) :
     if (fichierAdmin.open(QIODevice::ReadWrite))
     {
         QTextStream streamAdmin(&fichierAdmin);
-        while(!streamAdmin.atEnd())
+        while (!streamAdmin.atEnd())
         {
             ligne = streamAdmin.readLine();
             separateur = ligne.split("/");
@@ -62,22 +53,23 @@ thServeur::thServeur(QObject *parent) :
         this->deleteLater();
 }
 
+//Traite les nouvelles connections
 void thServeur::incomingConnection(int socketDesc)
 {
-    //std::cout << "incomming connection..." << std::endl;
-
     QByteArray baTrameRecu, baTrameEnvoi;
     bool connection = false;
 
     QTcpSocket* socket = new QTcpSocket(this);
     socket->setSocketDescriptor(socketDesc);
 
+    std::cout << "Connection entrante de: " << qPrintable(socket->peerAddress().toString()) << std::endl;
+
     //Attend un message
     if(!socket->waitForReadyRead(5000))
     {
         baTrameEnvoi.append('E');
         baTrameEnvoi.append("Délai expiré pour la connexion.");
-        socket->write(baTrameEnvoi); //Envoie de l'erreur
+        socket->write(baTrameEnvoi);
     }
     else
     {
@@ -102,12 +94,13 @@ void thServeur::incomingConnection(int socketDesc)
                         baTrameEnvoi.append(CODE_ALIVE);
                         baTrameEnvoi.append('U');
                         connection = true;
-                        //std::cout << "L'utilisateur " << pseudonyme.toAscii() << " a été créé." << std::endl;
+                        rafraichiFichierUtil();
+                        std::cout << "L'utilisateur " << qPrintable(pseudonyme) << " a été créé." << std::endl;
                     }
                     else
                     {
-                        baTrameEnvoi.append(CODE_ERR);//ajoute accents*********
-                        baTrameEnvoi.append("Le nom choisi est deja utilise.");
+                        baTrameEnvoi.append(CODE_ERR);
+                        baTrameEnvoi.append("Le nom choisi est déja utilisé.");
                         socket->write(baTrameEnvoi);
                     }
                     break;
@@ -117,6 +110,7 @@ void thServeur::incomingConnection(int socketDesc)
                     {
                         baTrameEnvoi.append(CODE_ALIVE);
                         baTrameEnvoi.append('A');
+                        pseudonyme.prepend("@");
                         connection = true;
                     }
                     else
@@ -130,7 +124,7 @@ void thServeur::incomingConnection(int socketDesc)
                         else
                         {
                             baTrameEnvoi.append(CODE_ERR);
-                            baTrameEnvoi.append("Ceci est un message d'erreur.");
+                            baTrameEnvoi.append("Login incorrect.");
                             socket->write(baTrameEnvoi);
                         }
                     }
@@ -153,7 +147,7 @@ void thServeur::incomingConnection(int socketDesc)
 
                 baTrameEnvoi.append(listeConnections());
                 socket->write(baTrameEnvoi);
-                //std::cout << pseudonyme << "est connecté" << std::endl;
+                std::cout << qPrintable(pseudonyme) << " est connecté" << std::endl;
             }
         }
         else
@@ -165,6 +159,7 @@ void thServeur::incomingConnection(int socketDesc)
     }
 }
 
+//Déclencher lorsqu'un message est recu d'un socket connecté au serveur
 void thServeur::messageRecu()
 {
     QTcpSocket* socketReception = static_cast<QTcpSocket*>(sender());
@@ -180,6 +175,7 @@ void thServeur::messageRecu()
     {
         case CODE_MESSAGE:
             message.prepend(pseudonyme + ": ");
+            message.prepend('M');
             baTrameEnvoi.append(message);
 
             while (iterateurConnections.hasNext())
@@ -188,6 +184,7 @@ void thServeur::messageRecu()
                 socketDestination = iterateurConnections.key();
                 socketDestination->write(baTrameEnvoi);
             }
+            std::cout << qPrintable(baTrameEnvoi) << std::endl;
             break;
 
         case CODE_ALIVE:
@@ -197,31 +194,47 @@ void thServeur::messageRecu()
             break;
 
         case CODE_DELETE:
-            if(m_hashUtil.contains(pseudonyme))
+            pseudonyme.remove(0, 1); //Enleve le @ des admins
+            if(m_hashAdmin.contains(pseudonyme))
             {
-                while (iterateurConnections.hasNext())
-                {
-                    iterateurConnections.next();
-                    if(iterateurConnections.value() == pseudonyme)
+                    if(m_hashUtil.contains(message))
                     {
-                        m_hashUtil.remove(pseudonyme);
-                        iterateurConnections.key()->disconnectFromHost();
-                        //std::cout << pseudonyme << "a ban " << iterateurConnections.value() << std::endl;
+                        m_hashUtil.remove(message);
+                        std::cout << qPrintable(pseudonyme) << " a delete " << qPrintable(message) << std::endl;
+                        rafraichiFichierUtil();
+
+                        //Kick l'utilisateur qui vient d'etre effacer
+                        while (iterateurConnections.hasNext())
+                        {
+                            iterateurConnections.next();
+                            if(iterateurConnections.value() == message)
+                            {
+                                iterateurConnections.key()->close();
+                                break;
+                            }
+                        }
                     }
-                }
+                    else
+                    {
+                        baTrameEnvoi.append('E');
+                        baTrameEnvoi.append("L'utilisateur n'existe pas.");
+                        socketReception->write(baTrameEnvoi);
+                    }
             }
             break;
 
         case CODE_KICK:
+            pseudonyme.remove(0, 1); //Enleve le @ des admins
             if(m_hashAdmin.contains(pseudonyme))
             {
                 while (iterateurConnections.hasNext())
                 {
                     iterateurConnections.next();
-                    if(iterateurConnections.value() == pseudonyme)
+                    if(iterateurConnections.value() == message)
                     {
-                        iterateurConnections.key()->disconnectFromHost();
-                        //std::cout << pseudonyme << "a kick " << iterateurConnections.value() << std::endl;
+                        iterateurConnections.key()->close();
+                        std::cout << qPrintable(pseudonyme) << " a kick " << qPrintable(iterateurConnections.value()) << std::endl;
+                        break;
                     }
                 }
             }
@@ -229,6 +242,7 @@ void thServeur::messageRecu()
     }
 }
 
+//Déclencher lorsqu'un scoket connecté au serveur se déconnecte
 void thServeur::deconnection()
 {
     QTcpSocket* socket = static_cast<QTcpSocket*>(sender());
@@ -236,12 +250,27 @@ void thServeur::deconnection()
     socket->deleteLater();
 }
 
-void thServeur::destroyed()
+//Sauvegarde le contenu de m_hashUtil dans le fichier utilisateurs
+void thServeur::rafraichiFichierUtil()
 {
-    //Sauvegarde le contenu de m_hashUtil et m_hashAdmin dans les fichier utilisateurs et administrateurs
-    //... **********
+    QFile fichierUtil("utilisateurs");
+    QHashIterator<QString, QString> iterateurUtilisateur(m_hashUtil);
+    QString listeUtilisateur;
+
+    if (fichierUtil.open(QIODevice::ReadWrite))
+    {
+        while (iterateurUtilisateur.hasNext())
+        {
+            iterateurUtilisateur.next();
+            listeUtilisateur.append(iterateurUtilisateur.key() + "/" + iterateurUtilisateur.value() + "\n");
+        }
+
+        fichierUtil.write(listeUtilisateur.toAscii());
+        fichierUtil.resize(fichierUtil.pos());
+    }
 }
 
+//retourne un QByteArray contenant la liste des utilisateurs connectés
 QByteArray thServeur::listeConnections()
 {
     QHashIterator<QTcpSocket*, QString> iterateurConnections(m_hashConnections);
