@@ -14,6 +14,7 @@
 #include <QStringList>
 #include <QFile>
 #include <QTextStream>
+#include <QTimer>
 
 class thServeur : public QTcpServer
 {
@@ -33,10 +34,12 @@ private:
     QHash<QTcpSocket*, QString> m_hashConnections;
     QByteArray listeConnections();
     void rafraichiFichierUtil();
+    QTimer *m_TAlive;
 
 private slots:
     void messageRecu();
     void deconnection();
+    void TAlive();
 };
 
 #endif // THSERVEUR_H

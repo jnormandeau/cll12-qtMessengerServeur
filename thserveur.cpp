@@ -51,6 +51,10 @@ thServeur::thServeur(QObject *parent) :
     else
         //Le fichier administrateurs na pas ete ouvert et le programme doit se terminer
         this->deleteLater();
+
+    m_TAlive = new QTimer(this);
+    connect(m_TAlive, SIGNAL(timeout()), this, SLOT(TAlive()));
+    m_TAlive->start(100);
 }
 
 //Traite les nouvelles connections
@@ -187,12 +191,6 @@ void thServeur::messageRecu()
             std::cout << qPrintable(baTrameEnvoi) << std::endl;
             break;
 
-        case CODE_ALIVE:
-            baTrameEnvoi.append(CODE_ALIVE);
-            baTrameEnvoi.append(listeConnections());
-            socketReception->write(baTrameEnvoi);
-            break;
-
         case CODE_DELETE:
             pseudonyme.remove(0, 1); //Enleve le @ des admins
             if(m_hashAdmin.contains(pseudonyme))
@@ -285,3 +283,19 @@ QByteArray thServeur::listeConnections()
     return baListeConnections;
 }
 
+void thServeur::TAlive()
+{
+    QByteArray baTrameEnvoi;
+    QTcpSocket* socketDestination;
+    QHashIterator<QTcpSocket*, QString> iterateurConnections(m_hashConnections);
+
+    baTrameEnvoi.append(CODE_ALIVE);
+    baTrameEnvoi.append(listeConnections());
+
+    while (iterateurConnections.hasNext())
+    {
+        iterateurConnections.next();
+        socketDestination = iterateurConnections.key();
+        socketDestination->write(baTrameEnvoi);
+    }
+}
